@@ -56,7 +56,7 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ stats }) => {
 
       {/* Hiç Ödemeyen Sayısı */}
       <StatCard 
-        label="Siftahsız" 
+        label="MİKROPLAR" 
         value={stats.zeroContributionCount} 
         subtext="Kişi Hiç Ödemedi"
         icon={UserX}
