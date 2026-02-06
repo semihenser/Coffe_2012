@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Person } from '../types';
-import { Trash2, User, MessageSquare, Save, X, Coffee, PlusCircle, History } from 'lucide-react';
+import { Trash2, User, MessageSquare, Save, X, Coffee, PlusCircle, History, Lock } from 'lucide-react';
 
 interface PersonListProps {
   people: Person[];
@@ -8,6 +8,7 @@ interface PersonListProps {
   onDelete: (id: string) => void;
   onRate: (id: string, feedback: string) => void;
   defaultAmount: number;
+  isAdmin: boolean;
 }
 
 // Internal component to manage input state per row
@@ -17,7 +18,8 @@ const PersonRow: React.FC<{
   onAddPayment: (id: string, amount: number) => void;
   onDelete: (id: string) => void;
   onRate: (id: string, feedback: string) => void;
-}> = ({ person, defaultAmount, onAddPayment, onDelete, onRate }) => {
+  isAdmin: boolean;
+}> = ({ person, defaultAmount, onAddPayment, onDelete, onRate, isAdmin }) => {
   const [amount, setAmount] = useState<string>(defaultAmount.toString());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempFeedback, setTempFeedback] = useState("");
@@ -27,11 +29,12 @@ const PersonRow: React.FC<{
     const val = parseFloat(amount);
     if (val > 0) {
       onAddPayment(person.id, val);
-      // Optional: Don't reset amount to keep flow fast, or reset if preferred.
     }
   };
 
   const handleStartEdit = () => {
+    // Only admin can edit notes if we are strictly following "Data entry restricted"
+    if (!isAdmin) return;
     setEditingId(person.id);
     setTempFeedback(person.satisfaction || "");
   };
@@ -69,28 +72,34 @@ const PersonRow: React.FC<{
         </div>
       </div>
 
-      {/* Add Payment Input */}
+      {/* Add Payment Input (Admin Only) */}
       <div className="w-full md:col-span-3">
-        <form onSubmit={handlePayment} className="flex items-center gap-2">
-            <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-400 text-xs font-bold">₺</span>
-                <input 
-                    type="number" 
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full pl-6 pr-2 py-2 text-sm border border-theme-200 rounded-xl focus:outline-none focus:border-accent-DEFAULT focus:ring-1 focus:ring-accent-light transition-all bg-white/50"
-                    placeholder="0"
-                />
+        {isAdmin ? (
+            <form onSubmit={handlePayment} className="flex items-center gap-2">
+                <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-theme-400 text-xs font-bold">₺</span>
+                    <input 
+                        type="number" 
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="w-full pl-6 pr-2 py-2 text-sm border border-theme-200 rounded-xl focus:outline-none focus:border-accent-DEFAULT focus:ring-1 focus:ring-accent-light transition-all bg-white/50"
+                        placeholder="0"
+                    />
+                </div>
+                <button 
+                    type="submit"
+                    disabled={!amount || parseFloat(amount) <= 0}
+                    className="bg-theme-800 text-white p-2 rounded-xl hover:bg-accent-DEFAULT hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-sm"
+                    title="Ekle"
+                >
+                    <PlusCircle size={20} />
+                </button>
+            </form>
+        ) : (
+            <div className="h-full flex items-center">
+                 <div className="h-1 w-12 bg-theme-100 rounded-full"></div>
             </div>
-            <button 
-                type="submit"
-                disabled={!amount || parseFloat(amount) <= 0}
-                className="bg-theme-800 text-white p-2 rounded-xl hover:bg-accent-DEFAULT hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-sm"
-                title="Ekle"
-            >
-                <PlusCircle size={20} />
-            </button>
-        </form>
+        )}
       </div>
 
       {/* Feedback */}
@@ -114,34 +123,40 @@ const PersonRow: React.FC<{
         ) : (
           <div 
             onClick={handleStartEdit}
-            className="group/edit flex items-center gap-2 cursor-pointer py-1"
+            className={`flex items-center gap-2 py-1 ${isAdmin ? 'cursor-pointer group/edit' : ''}`}
           >
             {person.satisfaction ? (
               <span className="text-sm text-theme-600 italic truncate max-w-[150px] border-b border-dashed border-theme-300 hover:border-accent-DEFAULT">"{person.satisfaction}"</span>
             ) : (
-              <span className="text-sm text-theme-300 flex items-center gap-1 group-hover/edit:text-accent-DEFAULT transition-colors">
-                <MessageSquare size={14} /> <span className="text-xs">Not ekle</span>
-              </span>
+              isAdmin ? (
+                <span className="text-sm text-theme-300 flex items-center gap-1 group-hover/edit:text-accent-DEFAULT transition-colors">
+                    <MessageSquare size={14} /> <span className="text-xs">Not ekle</span>
+                </span>
+              ) : (
+                <span className="text-sm text-theme-200 italic">-</span>
+              )
             )}
           </div>
         )}
       </div>
 
-      {/* Delete */}
+      {/* Delete (Admin Only) */}
       <div className="w-full md:col-span-1 flex justify-end">
-        <button
-          onClick={() => onDelete(person.id)}
-          className="p-2 text-theme-300 hover:text-[#E5989B] hover:bg-[#FFF5F5] rounded-lg transition-colors"
-          title="Kaydı Sil"
-        >
-          <Trash2 size={16} />
-        </button>
+        {isAdmin && (
+            <button
+            onClick={() => onDelete(person.id)}
+            className="p-2 text-theme-300 hover:text-[#E5989B] hover:bg-[#FFF5F5] rounded-lg transition-colors"
+            title="Kaydı Sil"
+            >
+            <Trash2 size={16} />
+            </button>
+        )}
       </div>
     </div>
   );
 };
 
-export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, onDelete, onRate, defaultAmount }) => {
+export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, onDelete, onRate, defaultAmount, isAdmin }) => {
   if (people.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed border-theme-200 rounded-2xl">
@@ -149,7 +164,9 @@ export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, on
            <Coffee size={32} className="text-theme-400" />
         </div>
         <p className="text-theme-700 font-bold text-lg">Liste Henüz Boş</p>
-        <p className="text-theme-400 text-sm mt-1">Ekibe yeni bir kahve sever ekleyin.</p>
+        <p className="text-theme-400 text-sm mt-1">
+             {isAdmin ? 'Ekibe yeni bir kahve sever ekleyin.' : 'Yönetici girişi yaparak kişi ekleyebilirsiniz.'}
+        </p>
       </div>
     );
   }
@@ -162,9 +179,9 @@ export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, on
       {/* Table Header */}
       <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-[#F9F7F5] border-b border-theme-100 text-xs font-bold uppercase tracking-widest text-theme-400">
         <div className="col-span-5">Kişi & Toplam Katkı</div>
-        <div className="col-span-3">Ödeme Ekle</div>
+        <div className="col-span-3">{isAdmin ? 'Ödeme Ekle' : ''}</div>
         <div className="col-span-3">Not</div>
-        <div className="col-span-1 text-right">Sil</div>
+        <div className="col-span-1 text-right">{isAdmin ? 'Sil' : ''}</div>
       </div>
 
       <div>
@@ -176,6 +193,7 @@ export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, on
                 onAddPayment={onAddPayment}
                 onDelete={onDelete}
                 onRate={onRate}
+                isAdmin={isAdmin}
             />
         ))}
       </div>

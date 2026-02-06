@@ -5,9 +5,10 @@ import { Trash2, ShoppingBag, Calendar } from 'lucide-react';
 interface ExpenseListProps {
   expenses: Expense[];
   onDelete: (id: string) => void;
+  isAdmin: boolean;
 }
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete }) => {
+export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete, isAdmin }) => {
   if (expenses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed border-theme-200 rounded-2xl">
@@ -15,7 +16,9 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete }) 
            <ShoppingBag size={32} className="text-theme-400" />
         </div>
         <p className="text-theme-700 font-bold text-lg">Henüz Harcama Yok</p>
-        <p className="text-theme-400 text-sm mt-1">Yapılan alışverişleri buraya ekleyebilirsiniz.</p>
+        <p className="text-theme-400 text-sm mt-1">
+            {isAdmin ? 'Yapılan alışverişleri buraya ekleyebilirsiniz.' : 'Harcama kaydı bulunmamaktadır.'}
+        </p>
       </div>
     );
   }
@@ -30,7 +33,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete }) 
         <div className="col-span-6">Açıklama</div>
         <div className="col-span-3">Tarih</div>
         <div className="col-span-2 text-right">Tutar</div>
-        <div className="col-span-1 text-right">Sil</div>
+        <div className="col-span-1 text-right">{isAdmin ? 'Sil' : ''}</div>
       </div>
 
       <div className="divide-y divide-theme-50">
@@ -67,13 +70,15 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onDelete }) 
 
             {/* Delete */}
             <div className="w-full md:col-span-1 flex justify-end">
-              <button
-                onClick={() => onDelete(expense.id)}
-                className="p-2 text-theme-300 hover:text-[#E5989B] hover:bg-[#FFF5F5] rounded-lg transition-colors"
-                title="Harcamayı Sil"
-              >
-                <Trash2 size={16} />
-              </button>
+              {isAdmin && (
+                  <button
+                    onClick={() => onDelete(expense.id)}
+                    className="p-2 text-theme-300 hover:text-[#E5989B] hover:bg-[#FFF5F5] rounded-lg transition-colors"
+                    title="Harcamayı Sil"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+              )}
             </div>
           </div>
         ))}

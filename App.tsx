@@ -6,7 +6,7 @@ import { ExpenseList } from './components/ExpenseList';
 import { QuoteDisplay } from './components/QuoteDisplay';
 import { generateMotivationMessage } from './services/geminiService';
 import { subscribeToData, saveData } from './services/storageService';
-import { Plus, Download, Settings, Loader2, Coffee, Sparkles, Wifi } from 'lucide-react';
+import { Plus, Download, Settings, Loader2, Coffee, Sparkles, Wifi, Lock, Unlock, LogOut, X } from 'lucide-react';
 
 const SETTINGS_KEY = 'office-coffee-settings';
 
@@ -27,6 +27,12 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'income' | 'expense'>('income');
   const [isLoadingData, setIsLoadingData] = useState(true);
   
+  // Auth State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [loginError, setLoginError] = useState(false);
+
   // Input State
   const [newName, setNewName] = useState('');
   const [expenseDesc, setExpenseDesc] = useState('');
@@ -102,8 +108,27 @@ const App: React.FC = () => {
   }, [people, expenses]);
 
   // Handlers
+  const handleLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      const correctPassword = process.env.VITE_ADMIN_PASSWORD || "2012";
+      if (passwordInput === correctPassword) {
+          setIsAdmin(true);
+          setShowLoginModal(false);
+          setPasswordInput("");
+          setLoginError(false);
+      } else {
+          setLoginError(true);
+      }
+  };
+
+  const handleLogout = () => {
+      setIsAdmin(false);
+      setShowSettings(false);
+  };
+
   const handleAddData = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
 
     if (activeTab === 'income') {
         if (!newName.trim()) return;
@@ -133,6 +158,7 @@ const App: React.FC = () => {
   };
 
   const handleAddPayment = (id: string, amount: number) => {
+      if (!isAdmin) return;
       const updatedPeople = people.map(p => {
           if (p.id === id) {
               return {
@@ -148,6 +174,7 @@ const App: React.FC = () => {
   };
 
   const handleDeletePerson = (id: string) => {
+    if (!isAdmin) return;
     if (window.confirm('Kişi silinecek. Onaylıyor musunuz?')) {
       const updatedPeople = people.filter(p => p.id !== id);
       setPeople(updatedPeople);
@@ -156,6 +183,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteExpense = (id: string) => {
+     if (!isAdmin) return;
      if (window.confirm('Harcama kaydı silinecek. Onaylıyor musunuz?')) {
         const updatedExpenses = expenses.filter(e => e.id !== id);
         setExpenses(updatedExpenses);
@@ -164,6 +192,8 @@ const App: React.FC = () => {
   }
 
   const handleRate = (id: string, feedback: string) => {
+    // Allow rating/notes for everyone or restrict? Let's restrict to keep it simple as per request.
+    if (!isAdmin) return; 
     const updatedPeople = people.map(p => {
       if (p.id === id) return { ...p, satisfaction: feedback };
       return p;
@@ -220,14 +250,56 @@ const App: React.FC = () => {
       {/* Top Bar */}
       <div className="w-full bg-white/80 backdrop-blur-sm border-b border-theme-100 py-2 px-4 flex justify-between items-center text-[10px] uppercase tracking-widest shadow-sm sticky top-0 z-50">
          <span className="text-theme-400 font-bold">İzmir B.B. • Oda 2012</span>
-         <div className="flex items-center gap-2">
-            {isLoadingData ? (
-               <><Loader2 size={12} className="animate-spin text-accent-DEFAULT" /> Yükleniyor</>
+         <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                {isLoadingData ? (
+                <><Loader2 size={12} className="animate-spin text-accent-DEFAULT" /> Yükleniyor</>
+                ) : (
+                <><Wifi size={12} className="text-[#A5A58D]" /> Sistem Aktif</>
+                )}
+            </div>
+            
+            {/* Login/Logout Button */}
+            {isAdmin ? (
+                 <button onClick={handleLogout} className="flex items-center gap-1 text-[#E5989B] hover:text-[#D4A373] transition-colors font-bold">
+                     <LogOut size={12} /> ÇIKIŞ
+                 </button>
             ) : (
-               <><Wifi size={12} className="text-[#A5A58D]" /> Sistem Aktif</>
+                 <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1 text-theme-400 hover:text-accent-DEFAULT transition-colors font-bold">
+                     <Lock size={12} /> GİRİŞ
+                 </button>
             )}
          </div>
       </div>
+
+      {/* Login Modal */}
+      {showLoginModal && (
+          <div className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-theme-100 animate-in zoom-in-95">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-theme-800 flex items-center gap-2">
+                          <Lock size={18} className="text-accent-DEFAULT" /> Yönetici Girişi
+                      </h3>
+                      <button onClick={() => setShowLoginModal(false)} className="text-theme-400 hover:text-theme-600">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <form onSubmit={handleLogin}>
+                      <input 
+                        type="password" 
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        placeholder="Şifre"
+                        className={`w-full bg-[#F9F7F5] border ${loginError ? 'border-red-300' : 'border-theme-200'} rounded-xl p-3 mb-4 focus:outline-none focus:border-accent-DEFAULT text-center tracking-widest font-mono text-lg`}
+                        autoFocus
+                      />
+                      <button type="submit" className="w-full bg-theme-800 text-white py-3 rounded-xl font-bold hover:bg-accent-DEFAULT transition-colors">
+                          Giriş Yap
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
 
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-10">
         
@@ -248,9 +320,11 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex gap-2">
-             <button onClick={() => setShowSettings(!showSettings)} className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider bg-white text-theme-500 border border-theme-100 hover:border-accent-DEFAULT hover:text-accent-DEFAULT transition-all flex items-center gap-2">
-                <Settings size={16} />
-             </button>
+             {isAdmin && (
+                <button onClick={() => setShowSettings(!showSettings)} className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider bg-white text-theme-500 border border-theme-100 hover:border-accent-DEFAULT hover:text-accent-DEFAULT transition-all flex items-center gap-2">
+                    <Settings size={16} />
+                </button>
+             )}
              <button onClick={handleExportExcel} className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider bg-white text-theme-500 border border-theme-100 hover:border-accent-DEFAULT hover:text-accent-DEFAULT transition-all flex items-center gap-2">
                 <Download size={16} /> Excel
              </button>
@@ -261,7 +335,7 @@ const App: React.FC = () => {
         <QuoteDisplay />
 
         {/* Settings */}
-        {showSettings && (
+        {showSettings && isAdmin && (
           <div className="mb-8 bg-white p-6 border border-theme-100 shadow-xl rounded-2xl animate-in fade-in slide-in-from-top-2">
              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-theme-50">
                <Settings size={18} className="text-accent-DEFAULT" />
@@ -302,63 +376,79 @@ const App: React.FC = () => {
             </button>
         </div>
 
-        {/* Dynamic Form & Action Bar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-           <div className="lg:col-span-2">
-              <form onSubmit={handleAddData} className="flex gap-2">
-                 {activeTab === 'income' ? (
-                     <input
-                        type="text"
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        placeholder="Yeni Kişi Ekle..."
-                        className="flex-1 bg-white border border-theme-200 rounded-2xl p-5 text-theme-800 placeholder:text-theme-300 focus:outline-none focus:border-accent-DEFAULT focus:ring-2 focus:ring-accent-light transition-all font-bold text-sm tracking-wide shadow-sm"
-                     />
-                 ) : (
-                     <div className="flex-1 flex gap-2">
+        {/* Dynamic Form & Action Bar (Only visible to Admin) */}
+        {isAdmin && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+            <div className="lg:col-span-2">
+                <form onSubmit={handleAddData} className="flex gap-2">
+                    {activeTab === 'income' ? (
                         <input
                             type="text"
-                            value={expenseDesc}
-                            onChange={(e) => setExpenseDesc(e.target.value)}
-                            placeholder="Ne alındı? (Örn: Filtre kağıdı)"
-                            className="flex-[2] bg-white border border-theme-200 rounded-2xl p-5 text-theme-800 placeholder:text-theme-300 focus:outline-none focus:border-[#E5989B] focus:ring-2 focus:ring-[#FFE5E5] transition-all font-bold text-sm tracking-wide shadow-sm"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            placeholder="Yeni Kişi Ekle..."
+                            className="flex-1 bg-white border border-theme-200 rounded-2xl p-5 text-theme-800 placeholder:text-theme-300 focus:outline-none focus:border-accent-DEFAULT focus:ring-2 focus:ring-accent-light transition-all font-bold text-sm tracking-wide shadow-sm"
                         />
-                         <input
-                            type="number"
-                            value={expenseAmount}
-                            onChange={(e) => setExpenseAmount(e.target.value)}
-                            placeholder="Tutar"
-                            className="flex-1 bg-white border border-theme-200 rounded-2xl p-5 text-theme-800 placeholder:text-theme-300 focus:outline-none focus:border-[#E5989B] focus:ring-2 focus:ring-[#FFE5E5] transition-all font-bold text-sm tracking-wide shadow-sm"
-                        />
-                     </div>
-                 )}
-                 
-                 <button 
-                    type="submit"
-                    className={`text-white px-8 rounded-2xl transition-colors shadow-md shadow-theme-200 ${activeTab === 'income' ? 'bg-theme-800 hover:bg-accent-DEFAULT' : 'bg-[#E5989B] hover:bg-[#D4A373]'}`}
-                 >
-                    <Plus size={24} />
-                 </button>
-              </form>
-           </div>
+                    ) : (
+                        <div className="flex-1 flex gap-2">
+                            <input
+                                type="text"
+                                value={expenseDesc}
+                                onChange={(e) => setExpenseDesc(e.target.value)}
+                                placeholder="Ne alındı? (Örn: Filtre kağıdı)"
+                                className="flex-[2] bg-white border border-theme-200 rounded-2xl p-5 text-theme-800 placeholder:text-theme-300 focus:outline-none focus:border-[#E5989B] focus:ring-2 focus:ring-[#FFE5E5] transition-all font-bold text-sm tracking-wide shadow-sm"
+                            />
+                            <input
+                                type="number"
+                                value={expenseAmount}
+                                onChange={(e) => setExpenseAmount(e.target.value)}
+                                placeholder="Tutar"
+                                className="flex-1 bg-white border border-theme-200 rounded-2xl p-5 text-theme-800 placeholder:text-theme-300 focus:outline-none focus:border-[#E5989B] focus:ring-2 focus:ring-[#FFE5E5] transition-all font-bold text-sm tracking-wide shadow-sm"
+                            />
+                        </div>
+                    )}
+                    
+                    <button 
+                        type="submit"
+                        className={`text-white px-8 rounded-2xl transition-colors shadow-md shadow-theme-200 ${activeTab === 'income' ? 'bg-theme-800 hover:bg-accent-DEFAULT' : 'bg-[#E5989B] hover:bg-[#D4A373]'}`}
+                    >
+                        <Plus size={24} />
+                    </button>
+                </form>
+            </div>
 
-           {/* AI Button (Only visible on Income tab or generally available) */}
-           <div className="lg:col-span-1">
-              <button 
-                 onClick={handleGenerateMessage}
-                 disabled={isGenerating || people.length === 0}
-                 className="w-full h-full flex items-center justify-between px-6 py-4 bg-white border border-theme-200 rounded-2xl hover:border-accent-DEFAULT hover:shadow-md transition-all group disabled:opacity-50"
-              >
-                 <div className="text-left">
-                    <span className="block text-[10px] font-bold uppercase text-theme-400 tracking-widest group-hover:text-accent-DEFAULT transition-colors">
-                       Yapay Zeka
-                    </span>
-                    <span className="font-bold text-theme-600 text-sm">Mesaj Oluştur</span>
-                 </div>
-                 {isGenerating ? <Loader2 className="animate-spin text-accent-DEFAULT" /> : <Sparkles size={20} className="text-[#E5989B] group-hover:text-[#D4A373]" />}
-              </button>
-           </div>
-        </div>
+            {/* AI Button (Only visible on Income tab or generally available) */}
+            <div className="lg:col-span-1">
+                <button 
+                    onClick={handleGenerateMessage}
+                    disabled={isGenerating || people.length === 0}
+                    className="w-full h-full flex items-center justify-between px-6 py-4 bg-white border border-theme-200 rounded-2xl hover:border-accent-DEFAULT hover:shadow-md transition-all group disabled:opacity-50"
+                >
+                    <div className="text-left">
+                        <span className="block text-[10px] font-bold uppercase text-theme-400 tracking-widest group-hover:text-accent-DEFAULT transition-colors">
+                        Yapay Zeka
+                        </span>
+                        <span className="font-bold text-theme-600 text-sm">Mesaj Oluştur</span>
+                    </div>
+                    {isGenerating ? <Loader2 className="animate-spin text-accent-DEFAULT" /> : <Sparkles size={20} className="text-[#E5989B] group-hover:text-[#D4A373]" />}
+                </button>
+            </div>
+            </div>
+        )}
+
+        {/* Non-Admin AI output view or just spacing if Admin */}
+        {!isAdmin && (
+             <div className="mb-6 flex justify-end">
+                <button 
+                    onClick={handleGenerateMessage}
+                    disabled={isGenerating || people.length === 0}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-theme-200 rounded-xl hover:border-accent-DEFAULT transition-all group disabled:opacity-50 text-xs font-bold text-theme-500 uppercase tracking-wider"
+                >
+                    {isGenerating ? <Loader2 size={16} className="animate-spin text-accent-DEFAULT" /> : <Sparkles size={16} className="text-[#E5989B]" />}
+                    {isGenerating ? "Yazıyor..." : "Yapay Zeka Mesajı"}
+                </button>
+             </div>
+        )}
 
         {/* AI Output */}
         {generatedMessage && (
@@ -378,11 +468,13 @@ const App: React.FC = () => {
                 onDelete={handleDeletePerson}
                 onRate={handleRate}
                 defaultAmount={coffeePrice}
+                isAdmin={isAdmin}
             />
         ) : (
             <ExpenseList 
                 expenses={expenses}
                 onDelete={handleDeleteExpense}
+                isAdmin={isAdmin}
             />
         )}
 
