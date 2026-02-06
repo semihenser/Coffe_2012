@@ -33,7 +33,7 @@ const App: React.FC = () => {
   const [expenseAmount, setExpenseAmount] = useState<string>('');
   
   // Settings State
-  const [coffeePrice, setCoffeePrice] = useState<number>(50);
+  const [coffeePrice, setCoffeePrice] = useState<number>(200);
   const [coffeeConsumption, setCoffeeConsumption] = useState<number>(0);
   const [showSettings, setShowSettings] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState<string | null>(null);
