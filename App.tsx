@@ -6,11 +6,11 @@ import { ExpenseList } from './components/ExpenseList';
 import { QuoteDisplay } from './components/QuoteDisplay';
 import { generateMotivationMessage } from './services/geminiService';
 import { subscribeToData, saveData } from './services/storageService';
-import { Plus, Download, Settings, Loader2, Coffee, Sparkles, Wifi, Receipt } from 'lucide-react';
+import { Plus, Download, Settings, Loader2, Coffee, Sparkles, Wifi } from 'lucide-react';
 
 const SETTINGS_KEY = 'office-coffee-settings';
 
-// Simple ID generator fallback if crypto.randomUUID is not available (e.g. non-secure contexts)
+// Simple ID generator fallback
 const generateId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -33,7 +33,7 @@ const App: React.FC = () => {
   const [expenseAmount, setExpenseAmount] = useState<string>('');
   
   // Settings State
-  const [coffeePrice, setCoffeePrice] = useState<number>(200);
+  const [coffeePrice, setCoffeePrice] = useState<number>(200); // Default monthly contribution
   const [coffeeConsumption, setCoffeeConsumption] = useState<number>(0);
   const [showSettings, setShowSettings] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState<string | null>(null);
@@ -46,7 +46,7 @@ const App: React.FC = () => {
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        setCoffeePrice(settings.price || 50);
+        setCoffeePrice(settings.price || 200);
         setCoffeeConsumption(settings.consumption || 0);
       } catch (e) {
         console.error("Failed to load settings", e);
@@ -56,7 +56,19 @@ const App: React.FC = () => {
     // Subscribe to Cloud Data
     setIsLoadingData(true);
     const unsubscribe = subscribeToData((dataPeople, dataExpenses) => {
-      setPeople(dataPeople);
+      // MIGRATION LOGIC: Convert old boolean 'hasPaid' to 'totalPaid'
+      const migratedPeople = dataPeople.map(p => {
+        if (p.totalPaid === undefined) {
+             return {
+                 ...p,
+                 totalPaid: p.hasPaid ? 200 : 0, // Assume 200 if marked as paid in old system
+                 lastPaymentDate: p.datePaid
+             }
+        }
+        return p;
+      });
+
+      setPeople(migratedPeople);
       setExpenses(dataExpenses);
       setIsLoadingData(false);
     });
@@ -74,19 +86,20 @@ const App: React.FC = () => {
 
   // Derived Stats
   const stats: Stats = useMemo(() => {
-    const paidPeople = people.filter(p => p.hasPaid);
-    const totalCollected = paidPeople.length * coffeePrice;
+    // Total collected is sum of all totalPaid
+    const totalCollected = people.reduce((sum, p) => sum + (p.totalPaid || 0), 0);
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const contributors = people.filter(p => p.totalPaid > 0).length;
 
     return {
       totalPeople: people.length,
-      paidCount: paidPeople.length,
-      unpaidCount: people.length - paidPeople.length,
+      contributorsCount: contributors,
+      zeroContributionCount: people.length - contributors,
       totalCollected: totalCollected,
       totalSpent: totalSpent,
       remainingBalance: totalCollected - totalSpent
     };
-  }, [people, expenses, coffeePrice]);
+  }, [people, expenses]);
 
   // Handlers
   const handleAddData = (e: React.FormEvent) => {
@@ -97,7 +110,7 @@ const App: React.FC = () => {
         const newPerson: Person = {
             id: generateId(),
             name: newName.trim(),
-            hasPaid: false
+            totalPaid: 0 // New person starts with 0
         };
         const updatedPeople = [...people, newPerson];
         setPeople(updatedPeople);
@@ -119,19 +132,19 @@ const App: React.FC = () => {
     }
   };
 
-  const handleTogglePay = (id: string) => {
-    const updatedPeople = people.map(p => {
-      if (p.id === id) {
-        return {
-          ...p,
-          hasPaid: !p.hasPaid,
-          datePaid: !p.hasPaid ? new Date().toISOString() : undefined
-        };
-      }
-      return p;
-    });
-    setPeople(updatedPeople);
-    saveData(updatedPeople, expenses);
+  const handleAddPayment = (id: string, amount: number) => {
+      const updatedPeople = people.map(p => {
+          if (p.id === id) {
+              return {
+                  ...p,
+                  totalPaid: (p.totalPaid || 0) + amount,
+                  lastPaymentDate: new Date().toISOString()
+              };
+          }
+          return p;
+      });
+      setPeople(updatedPeople);
+      saveData(updatedPeople, expenses);
   };
 
   const handleDeletePerson = (id: string) => {
@@ -163,16 +176,12 @@ const App: React.FC = () => {
     const BOM = "\uFEFF";
     let csvContent = BOM;
 
-    // Sheet 1 logic mostly, but let's do a combined simple format for now or just the active tab
-    // To keep it simple, let's export the currently viewed list
     if (activeTab === 'income') {
-        const headers = "İsim,Durum,Ödeme Tarihi,Tutar,Görüş\n";
+        const headers = "İsim,Toplam Ödenen,Son Ödeme Tarihi,Not\n";
         const rows = people.map(p => {
-            const status = p.hasPaid ? "ÖDEDİ" : "ÖDEMEDİ";
-            const date = p.datePaid ? new Date(p.datePaid).toLocaleDateString('tr-TR') : "-";
-            const amount = p.hasPaid ? coffeePrice : 0;
+            const date = p.lastPaymentDate ? new Date(p.lastPaymentDate).toLocaleDateString('tr-TR') : "-";
             const feedback = p.satisfaction ? p.satisfaction.replace(/"/g, '""') : "-";
-            return `"${p.name}","${status}","${date}","${amount}","${feedback}"`;
+            return `"${p.name}","${p.totalPaid}","${date}","${feedback}"`;
         }).join("\n");
         csvContent += headers + rows;
     } else {
@@ -197,9 +206,10 @@ const App: React.FC = () => {
   const handleGenerateMessage = async () => {
     setIsGenerating(true);
     setGeneratedMessage(null);
-    const unpaid = people.filter(p => !p.hasPaid);
-    const paid = people.filter(p => p.hasPaid);
-    const msg = await generateMotivationMessage(unpaid, paid);
+    const zeroContributors = people.filter(p => p.totalPaid === 0);
+    const topContributors = people.filter(p => p.totalPaid > 0).sort((a,b) => b.totalPaid - a.totalPaid);
+    
+    const msg = await generateMotivationMessage(zeroContributors, topContributors);
     setGeneratedMessage(msg);
     setIsGenerating(false);
   };
@@ -259,8 +269,9 @@ const App: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="group">
-                  <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Kişi Başı Tutar (TL)</label>
+                  <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Önerilen Ödeme Tutarı (TL)</label>
                   <input type="number" value={coffeePrice} onChange={(e) => setCoffeePrice(Number(e.target.value))} className="w-full bg-[#F9F7F5] border border-theme-200 rounded-xl outline-none py-3 px-4 text-lg font-mono text-theme-800" />
+                  <p className="text-[10px] text-theme-300 mt-1">Listede "Ekle" butonuna basıldığında varsayılan olarak gelecek tutar.</p>
                </div>
                <div className="group">
                   <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Aylık Hedef (Gr)</label>
@@ -300,7 +311,7 @@ const App: React.FC = () => {
                         type="text"
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
-                        placeholder="Yeni İsim Ekle..."
+                        placeholder="Yeni Kişi Ekle..."
                         className="flex-1 bg-white border border-theme-200 rounded-2xl p-5 text-theme-800 placeholder:text-theme-300 focus:outline-none focus:border-accent-DEFAULT focus:ring-2 focus:ring-accent-light transition-all font-bold text-sm tracking-wide shadow-sm"
                      />
                  ) : (
@@ -351,7 +362,7 @@ const App: React.FC = () => {
 
         {/* AI Output */}
         {generatedMessage && (
-           <div className="mb-8 bg-[#FFF0F3] text-[#6D3B3E] p-8 rounded-2xl border border-[#FFCCD5] relative overflow-hidden">
+           <div className="mb-8 bg-[#FFF0F3] text-[#6D3B3E] p-8 rounded-2xl border border-[#FFCCD5] relative overflow-hidden animate-in zoom-in-95">
               <div className="absolute top-0 right-0 p-4 opacity-20">
                  <Sparkles size={120} />
               </div>
@@ -363,9 +374,10 @@ const App: React.FC = () => {
         {activeTab === 'income' ? (
             <PersonList 
                 people={people} 
-                onTogglePay={handleTogglePay} 
+                onAddPayment={handleAddPayment} 
                 onDelete={handleDeletePerson}
                 onRate={handleRate}
+                defaultAmount={coffeePrice}
             />
         ) : (
             <ExpenseList 

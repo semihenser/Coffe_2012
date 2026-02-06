@@ -1,25 +1,25 @@
 import { GoogleGenAI } from "@google/genai";
 import { Person } from "../types";
 
-export const generateMotivationMessage = async (unpaidPeople: Person[], paidPeople: Person[]): Promise<string> => {
+export const generateMotivationMessage = async (zeroContributors: Person[], topContributors: Person[]): Promise<string> => {
   // Use process.env.API_KEY as per Google GenAI SDK guidelines.
-  // Assume this variable is pre-configured, valid, and accessible.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const unpaidNames = unpaidPeople.map(p => p.name).join(', ');
-  const paidNames = paidPeople.map(p => p.name).join(', ');
+  const zeroNames = zeroContributors.map(p => p.name).join(', ');
+  const topNames = topContributors.slice(0, 3).map(p => `${p.name} (₺${p.totalPaid})`).join(', ');
 
   const prompt = `
     Sen ofis kahve fonunu yöneten eğlenceli, biraz sarkastik ama sevilen bir yapay zekasın.
     
     Durum Raporu:
-    Parayı veren harika insanlar: ${paidNames || "Henüz kimse vermedi :("}
-    Henüz pamuk elleri cebe atmayanlar: ${unpaidNames || "Herkes ödedi! Harika!"}
+    En çok katkı sağlayan kahramanlar: ${topNames || "Henüz kimse elini cebine atmadı :("}
+    Henüz siftahı olmayan, pamuk ellerin cebe gitmediği kişiler: ${zeroNames || "Herkes bir şeyler ateşledi, harika!"}
 
     Görev:
-    Ofis grubuna (Slack/WhatsApp) atılacak kısa, komik ve tatlı-sert bir mesaj yaz. 
-    Parayı vermeyenleri (isim vermeden genel konuşarak ya da çok tatlı sitem ederek) ödemeye teşvik et. 
-    Kahvenin önemini vurgula. Türk ofis kültürüne uygun olsun. Emojiler kullan.
+    Ofis grubuna (Slack/WhatsApp) atılacak kısa, komik ve tatlı-sert bir mesaj yaz.
+    Hiç ödeme yapmayanlara (isim vermeden genel konuşarak ya da çok tatlı sitem ederek) ödemeye teşvik et.
+    Kasa durumunun kümülatif olduğunu, damlaya damlaya göl olduğunu hatırlat.
+    Türk ofis kültürüne uygun olsun. Emojiler kullan.
     Maksimum 3 cümle olsun.
   `;
 
@@ -32,7 +32,7 @@ export const generateMotivationMessage = async (unpaidPeople: Person[], paidPeop
       }
     });
 
-    return response.text || "Kahve hayattır, lütfen ödeme yapalım! ☕";
+    return response.text || "Kahve hayattır, kasayı dolduralım arkadaşlar! ☕";
   } catch (error) {
     console.error("Gemini error:", error);
     return "Şu an yaratıcılığım tıkandı ama kahve lazım! ☕";

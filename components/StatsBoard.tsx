@@ -1,6 +1,6 @@
 import React from 'react';
 import { Stats } from '../types';
-import { Wallet, TrendingDown, PiggyBank, AlertCircle } from 'lucide-react';
+import { Wallet, TrendingDown, PiggyBank, UserX } from 'lucide-react';
 
 interface StatsBoardProps {
   stats: Stats;
@@ -48,18 +48,18 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ stats }) => {
 
       {/* Kasa */}
       <StatCard 
-        label="Kasa (Kalan)" 
+        label="Kasa (Net)" 
         value={`₺${stats.remainingBalance}`} 
         icon={PiggyBank}
         colorClass={`bg-[#B5C9C3] text-[#354F52] ${stats.remainingBalance < 0 ? 'border-red-200 bg-red-50 text-red-600' : ''}`} // Pastel Blue
       />
 
-      {/* Ödemeyen Sayısı */}
+      {/* Hiç Ödemeyen Sayısı */}
       <StatCard 
-        label="Beklenen" 
-        value={stats.unpaidCount} 
-        subtext="Kişi Ödemedi"
-        icon={AlertCircle}
+        label="Siftahsız" 
+        value={stats.zeroContributionCount} 
+        subtext="Kişi Hiç Ödemedi"
+        icon={UserX}
         colorClass="bg-[#E3D5CA] text-[#7F5539]" // Pastel Mocha
       />
     </div>
