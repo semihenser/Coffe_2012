@@ -2,8 +2,8 @@ import { GoogleGenAI } from "@google/genai";
 import { Person } from "../types";
 
 export const generateMotivationMessage = async (unpaidPeople: Person[], paidPeople: Person[]): Promise<string> => {
-  // Always use process.env.API_KEY directly as per guidelines. 
-  // We assume the environment is correctly configured.
+  // Use process.env.API_KEY as per Google GenAI SDK guidelines.
+  // Assume this variable is pre-configured, valid, and accessible.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const unpaidNames = unpaidPeople.map(p => p.name).join(', ');

@@ -3,15 +3,14 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
 // 1. Firebase Yapılandırması
-// GÜVENLİK UYARISI: GitHub'a yüklemeden önce hardcoded anahtarlar kaldırıldı.
-// Bu değerler sadece process.env üzerinden okunmalıdır.
+// Use process.env instead of import.meta.env to avoid type errors
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID
 };
 
 const COLLECTION_NAME = "kahve_takip";
@@ -22,7 +21,6 @@ let db: any = null;
 let isFirebaseInitialized = false;
 
 // 2. Firebase Başlatma
-// Sadece gerekli config değerleri environment variable olarak varsa başlat
 if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   try {
     const app = initializeApp(firebaseConfig);
@@ -34,7 +32,6 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   }
 } else {
   console.warn("⚠️ Firebase config bulunamadı. Uygulama sadece LocalStorage modunda çalışacak.");
-  console.warn("Yayınlama yapıyorsanız (Vercel/Netlify) Environment Variable'ları eklemeyi unutmayın.");
 }
 
 // Veriyi kaydet (Önce LocalStorage, sonra Firebase)
