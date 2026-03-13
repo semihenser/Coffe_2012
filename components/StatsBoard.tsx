@@ -54,11 +54,11 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ stats }) => {
         colorClass={`bg-[#B5C9C3] text-[#354F52] ${stats.remainingBalance < 0 ? 'border-red-200 bg-red-50 text-red-600' : ''}`} // Pastel Blue
       />
 
-      {/* Hiç Ödemeyen Sayısı */}
+      {/* Bu Ay Ödemeyen Sayısı */}
       <StatCard 
-        label="MİKROPLAR" 
+        label="Borçlu (Bu Ay)" 
         value={stats.zeroContributionCount} 
-        subtext="Kişi Hiç Ödemedi"
+        subtext="Kişi Henüz Ödemedi"
         icon={UserX}
         colorClass="bg-[#E3D5CA] text-[#7F5539]" // Pastel Mocha
       />

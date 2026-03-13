@@ -92,15 +92,27 @@ const App: React.FC = () => {
 
   // Derived Stats
   const stats: Stats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const isPaidThisMonth = (dateStr?: string) => {
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    };
+
     // Total collected is sum of all totalPaid
     const totalCollected = people.reduce((sum, p) => sum + (p.totalPaid || 0), 0);
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const contributors = people.filter(p => p.totalPaid > 0).length;
+    
+    // Contributors for the CURRENT month
+    const monthlyContributors = people.filter(p => isPaidThisMonth(p.lastPaymentDate)).length;
 
     return {
       totalPeople: people.length,
-      contributorsCount: contributors,
-      zeroContributionCount: people.length - contributors,
+      contributorsCount: monthlyContributors,
+      zeroContributionCount: people.length - monthlyContributors,
       totalCollected: totalCollected,
       totalSpent: totalSpent,
       remainingBalance: totalCollected - totalSpent
@@ -236,10 +248,21 @@ const App: React.FC = () => {
   const handleGenerateMessage = async () => {
     setIsGenerating(true);
     setGeneratedMessage(null);
-    const zeroContributors = people.filter(p => p.totalPaid === 0);
-    const topContributors = people.filter(p => p.totalPaid > 0).sort((a,b) => b.totalPaid - a.totalPaid);
     
-    const msg = await generateMotivationMessage(zeroContributors, topContributors);
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const isPaidThisMonth = (dateStr?: string) => {
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    };
+
+    const slackers = people.filter(p => !isPaidThisMonth(p.lastPaymentDate));
+    const monthlyPayers = people.filter(p => isPaidThisMonth(p.lastPaymentDate)).sort((a,b) => (b.totalPaid || 0) - (a.totalPaid || 0));
+    
+    const msg = await generateMotivationMessage(slackers, monthlyPayers);
     setGeneratedMessage(msg);
     setIsGenerating(false);
   };

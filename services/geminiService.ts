@@ -12,13 +12,13 @@ export const generateMotivationMessage = async (zeroContributors: Person[], topC
     Sen ofis kahve fonunu yöneten eğlenceli, biraz sarkastik ama sevilen bir yapay zekasın.
     
     Durum Raporu:
-    En çok katkı sağlayan kahramanlar: ${topNames || "Henüz kimse elini cebine atmadı :("}
-    Henüz siftahı olmayan, pamuk ellerin cebe gitmediği kişiler: ${zeroNames || "Herkes bir şeyler ateşledi, harika!"}
+    Bu ayın kahramanları: ${topNames || "Bu ay henüz kimse elini cebine atmadı :("}
+    Bu ay henüz siftahı olmayan, pamuk ellerin cebe gitmediği kişiler: ${zeroNames || "Bu ay herkes bir şeyler ateşledi, harika!"}
 
     Görev:
     Ofis grubuna (Slack/WhatsApp) atılacak kısa, komik ve tatlı-sert bir mesaj yaz.
-    Hiç ödeme yapmayanlara (isim vermeden genel konuşarak ya da çok tatlı sitem ederek) ödemeye teşvik et.
-    Kasa durumunun kümülatif olduğunu, damlaya damlaya göl olduğunu hatırlat.
+    Bu ay ödeme yapmayanları (isim vermeden genel konuşarak ya da çok tatlı sitem ederek) ödemeye teşvik et.
+    Kahve fonunun aylık periyotlarla toplandığını ve taze kahve için kasanın dolması gerektiğini hatırlat.
     Türk ofis kültürüne uygun olsun. Emojiler kullan.
     Maksimum 3 cümle olsun.
   `;
