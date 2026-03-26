@@ -26,7 +26,7 @@ export const QuoteDisplay: React.FC = () => {
       
       <div className="flex items-center gap-2 mb-4 text-accent-DEFAULT font-bold text-xs uppercase tracking-widest z-10 bg-accent-light/30 px-3 py-1 rounded-full">
         <Coffee size={14} />
-        <span>Günün Sözü</span>
+        <span>Sizden Sözler</span>
       </div>
       
       <p className="font-serif text-xl md:text-3xl italic text-theme-700 leading-relaxed z-10 max-w-3xl">
