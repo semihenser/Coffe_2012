@@ -1,6 +1,5 @@
 export const quotes = [
 "Malın fiyatı, hizmetin ücreti olur - TYT",
-"Lezzetin adresi YELKİ ŞEN ÇİFTLİK",
 "Yel kayadan ancak toz alır.",
 "Her türlü omlet siparişi alınır - Arda ŞEN",
 "HAYDİİİ -TYT",
@@ -9,6 +8,8 @@ export const quotes = [
 "Hak haklıyken aranır -Neşe Yıldız",
 "Canıma doydum -Mr.Huge",
 "Kurşunlara gelesiniz -TYT",
+"Baaaağk gaaarri -Ceren UÖ",
+"Manyatik alan var burda -Mr.Huge"
 ];
 
 // Returns a quote based on current 10-minute block interval
