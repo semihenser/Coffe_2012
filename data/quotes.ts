@@ -14,7 +14,7 @@ export const quotes = [
 
 // Returns a quote based on current 10-minute block interval
 export const getDailyQuote = (): string => {
-  const tenMinutesMs = 1000 * 30 * 1;
+  const tenMinutesMs = 1000 * 5 * 1;
   const timeBlock = Math.floor(Date.now() / tenMinutesMs);
   const quoteIndex = timeBlock % quotes.length;
   return quotes[quoteIndex];
