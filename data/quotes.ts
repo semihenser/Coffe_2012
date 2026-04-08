@@ -9,7 +9,9 @@ export const quotes = [
 "Canıma doydum -Mr.Huge",
 "Kurşunlara gelesiniz -TYT",
 "Baaaağk gaaarri -Ceren UÖ",
-"Manyatik alan var burda -Mr.Huge"
+"Manyatik alan var burda -Mr.Huge",
+"Dünyada mekan, ahirette iman - Erkan Mert",
+"Boşuna uğraşma Betül!"
 ];
 
 // Returns a quote based on current 10-minute block interval
