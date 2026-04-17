@@ -41,9 +41,11 @@ const App: React.FC = () => {
   // Settings State
   const [coffeePrice, setCoffeePrice] = useState<number>(200); // Default monthly contribution
   const [coffeeConsumption, setCoffeeConsumption] = useState<number>(0);
+  const [fundStartDate, setFundStartDate] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [showSettings, setShowSettings] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [mikropFilter, setMikropFilter] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -54,6 +56,7 @@ const App: React.FC = () => {
         const settings = JSON.parse(savedSettings);
         setCoffeePrice(settings.price || 200);
         setCoffeeConsumption(settings.consumption || 0);
+        setFundStartDate(settings.startDate || new Date().toISOString().slice(0, 7));
       } catch (e) {
         console.error("Failed to load settings", e);
       }
@@ -86,9 +89,17 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ 
       price: coffeePrice, 
-      consumption: coffeeConsumption 
+      consumption: coffeeConsumption,
+      startDate: fundStartDate 
     }));
-  }, [coffeePrice, coffeeConsumption]);
+  }, [coffeePrice, coffeeConsumption, fundStartDate]);
+
+  // Calculated Fund Months
+  const totalFundMonths = useMemo(() => {
+    const start = new Date(fundStartDate + "-01");
+    const now = new Date();
+    return (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
+  }, [fundStartDate]);
 
   // Derived Stats
   const stats: Stats = useMemo(() => {
@@ -109,12 +120,20 @@ const App: React.FC = () => {
     // Contributors for the CURRENT month
     const monthlyContributors = people.filter(p => isPaidThisMonth(p.lastPaymentDate)).length;
 
+    // Overall Debt relative to the top contributor
+    const maxContribution = people.length > 0 ? Math.max(0, ...people.map(p => p.totalPaid || 0)) : 0;
+    const totalDebt = people.reduce((sum, p) => {
+        const debt = Math.max(0, maxContribution - (p.totalPaid || 0));
+        return sum + debt;
+    }, 0);
+
     return {
       totalPeople: people.length,
       contributorsCount: monthlyContributors,
       zeroContributionCount: people.length - monthlyContributors,
       totalCollected: totalCollected,
       totalSpent: totalSpent,
+      totalDebt: totalDebt,
       remainingBalance: totalCollected - totalSpent
     };
   }, [people, expenses]);
@@ -259,10 +278,19 @@ const App: React.FC = () => {
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     };
 
-    const slackers = people.filter(p => !isPaidThisMonth(p.lastPaymentDate));
+    const mikroplar = people.filter(p => {
+        const maxContribution = people.length > 0 ? Math.max(0, ...people.map(person => person.totalPaid || 0)) : 0;
+        const isPaidThisMonth = (dateStr?: string) => {
+            if (!dateStr) return false;
+            const now = new Date();
+            const date = new Date(dateStr);
+            return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        };
+        return (p.totalPaid || 0) < maxContribution || !isPaidThisMonth(p.lastPaymentDate);
+    });
     const monthlyPayers = people.filter(p => isPaidThisMonth(p.lastPaymentDate)).sort((a,b) => (b.totalPaid || 0) - (a.totalPaid || 0));
     
-    const msg = await generateMotivationMessage(slackers, monthlyPayers);
+    const msg = await generateMotivationMessage(mikroplar, monthlyPayers);
     setGeneratedMessage(msg);
     setIsGenerating(false);
   };
@@ -364,7 +392,7 @@ const App: React.FC = () => {
                <Settings size={18} className="text-accent-DEFAULT" />
                <span className="font-bold uppercase tracking-widest text-theme-500 text-sm">Parametreler</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                <div className="group">
                   <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Önerilen Ödeme Tutarı (TL)</label>
                   <input type="number" value={coffeePrice} onChange={(e) => setCoffeePrice(Number(e.target.value))} className="w-full bg-[#F9F7F5] border border-theme-200 rounded-xl outline-none py-3 px-4 text-lg font-mono text-theme-800" />
@@ -374,6 +402,11 @@ const App: React.FC = () => {
                   <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Aylık Hedef (Gr)</label>
                   <input type="number" value={coffeeConsumption} onChange={(e) => setCoffeeConsumption(Number(e.target.value))} className="w-full bg-[#F9F7F5] border border-theme-200 rounded-xl outline-none py-3 px-4 text-lg font-mono text-theme-800" />
                </div>
+               <div className="group">
+                  <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Fon Başlangıç Ayı</label>
+                  <input type="month" value={fundStartDate} onChange={(e) => setFundStartDate(e.target.value)} className="w-full bg-[#F9F7F5] border border-theme-200 rounded-xl outline-none py-3 px-4 text-lg font-mono text-theme-800" />
+                  <p className="text-[10px] text-theme-300 mt-1">Borç hesaplaması için başlangıç tarihi.</p>
+               </div>
             </div>
             <div className="mt-6 flex justify-end">
                <button onClick={() => setShowSettings(false)} className="bg-theme-800 text-white hover:bg-accent-DEFAULT px-8 py-3 rounded-xl font-bold uppercase tracking-wider transition-colors text-xs shadow-lg shadow-theme-200">Kaydet & Kapat</button>
@@ -381,7 +414,11 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <StatsBoard stats={stats} />
+        <StatsBoard 
+            stats={stats} 
+            mikropActive={mikropFilter}
+            onMikropToggle={() => setMikropFilter(!mikropFilter)}
+        />
 
         {/* TABS */}
         <div className="flex gap-4 mb-4 border-b border-theme-200">
@@ -486,12 +523,23 @@ const App: React.FC = () => {
         {/* Content List */}
         {activeTab === 'income' ? (
             <PersonList 
-                people={people} 
+                people={mikropFilter ? people.filter(p => {
+                    const maxContribution = people.length > 0 ? Math.max(0, ...people.map(person => person.totalPaid || 0)) : 0;
+                    const isPaidThisMonth = (dateStr?: string) => {
+                        if (!dateStr) return false;
+                        const now = new Date();
+                        const date = new Date(dateStr);
+                        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+                    };
+                    return (p.totalPaid || 0) < maxContribution || !isPaidThisMonth(p.lastPaymentDate);
+                }) : people} 
                 onAddPayment={handleAddPayment} 
                 onDelete={handleDeletePerson}
                 onRate={handleRate}
                 defaultAmount={coffeePrice}
                 isAdmin={isAdmin}
+                totalFundMonths={totalFundMonths}
+                maxContribution={people.length > 0 ? Math.max(0, ...people.map(p => p.totalPaid || 0)) : 0}
             />
         ) : (
             <ExpenseList 

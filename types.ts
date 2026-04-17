@@ -21,6 +21,7 @@ export interface Expense {
 export interface Stats {
   totalCollected: number;
   totalSpent: number;
+  totalDebt: number;
   remainingBalance: number;
   totalPeople: number;
   contributorsCount: number; // People who paid at least something
