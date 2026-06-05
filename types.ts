@@ -6,6 +6,7 @@ export interface Person {
   lastPaymentDate?: string;
   note?: string;
   satisfaction?: string;
+  hasLeft?: boolean; // True if the person left the fund but their payments are preserved
   // Legacy support for migration (optional)
   hasPaid?: boolean;
   datePaid?: string;

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Person } from '../types';
-import { Trash2, User, MessageSquare, Save, X, Coffee, PlusCircle, History, Lock } from 'lucide-react';
+import { Trash2, User, UserMinus, MessageSquare, Save, X, Coffee, PlusCircle, History, Lock } from 'lucide-react';
 
 interface PersonListProps {
   people: Person[];
   onAddPayment: (id: string, amount: number) => void;
   onDelete: (id: string) => void;
+  onLeaveFund: (id: string) => void;
   onRate: (id: string, feedback: string) => void;
   defaultAmount: number;
   isAdmin: boolean;
@@ -19,11 +20,12 @@ const PersonRow: React.FC<{
   defaultAmount: number;
   onAddPayment: (id: string, amount: number) => void;
   onDelete: (id: string) => void;
+  onLeaveFund: (id: string) => void;
   onRate: (id: string, feedback: string) => void;
   isAdmin: boolean;
   totalFundMonths: number;
   maxContribution: number;
-}> = ({ person, defaultAmount, onAddPayment, onDelete, onRate, isAdmin, totalFundMonths, maxContribution }) => {
+}> = ({ person, defaultAmount, onAddPayment, onDelete, onLeaveFund, onRate, isAdmin, totalFundMonths, maxContribution }) => {
   const [amount, setAmount] = useState<string>(defaultAmount.toString());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempFeedback, setTempFeedback] = useState("");
@@ -37,8 +39,7 @@ const PersonRow: React.FC<{
   };
 
   const handleStartEdit = () => {
-    // Only admin can edit notes if we are strictly following "Data entry restricted"
-    if (!isAdmin) return;
+    // Anyone can edit notes now - no isAdmin barrier!
     setEditingId(person.id);
     setTempFeedback(person.satisfaction || "");
   };
@@ -153,40 +154,45 @@ const PersonRow: React.FC<{
         ) : (
           <div 
             onClick={handleStartEdit}
-            className={`flex items-center gap-2 py-1 ${isAdmin ? 'cursor-pointer group/edit' : ''}`}
+            className="flex items-center gap-2 py-1 cursor-pointer group/edit w-full"
           >
             {person.satisfaction ? (
               <span className="text-sm text-theme-600 italic truncate max-w-[150px] border-b border-dashed border-theme-300 hover:border-accent-DEFAULT">"{person.satisfaction}"</span>
             ) : (
-              isAdmin ? (
-                <span className="text-sm text-theme-300 flex items-center gap-1 group-hover/edit:text-accent-DEFAULT transition-colors">
-                    <MessageSquare size={14} /> <span className="text-xs">Not ekle</span>
-                </span>
-              ) : (
-                <span className="text-sm text-theme-200 italic">-</span>
-              )
+              <span className="text-sm text-theme-300 flex items-center gap-1 group-hover/edit:text-accent-DEFAULT transition-colors">
+                  <MessageSquare size={14} /> <span className="text-xs">Görüş ekle</span>
+              </span>
             )}
           </div>
         )}
       </div>
 
-      {/* Delete (Admin Only) */}
-      <div className="w-full md:col-span-1 flex justify-end">
+      {/* Actions (Admin Only) */}
+      <div className="w-full md:col-span-1 flex justify-end gap-1.5">
         {isAdmin && (
-            <button
-            onClick={() => onDelete(person.id)}
-            className="p-2 text-theme-300 hover:text-[#E5989B] hover:bg-[#FFF5F5] rounded-lg transition-colors"
-            title="Kaydı Sil"
-            >
-            <Trash2 size={16} />
-            </button>
+            <>
+              <button
+                onClick={() => onLeaveFund(person.id)}
+                className="p-1.5 text-theme-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                title="Fondan Ayrıl (Verdiği para kasa toplamında saklanır)"
+              >
+                <UserMinus size={16} />
+              </button>
+              <button
+                onClick={() => onDelete(person.id)}
+                className="p-1.5 text-theme-400 hover:text-[#E5989B] hover:bg-[#FFF5F5] rounded-lg transition-colors"
+                title="Sistemden Tamamen Sil"
+              >
+                <Trash2 size={16} />
+              </button>
+            </>
         )}
       </div>
     </div>
   );
 };
 
-export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, onDelete, onRate, defaultAmount, isAdmin, totalFundMonths, maxContribution }) => {
+export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, onDelete, onLeaveFund, onRate, defaultAmount, isAdmin, totalFundMonths, maxContribution }) => {
   if (people.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed border-theme-200 rounded-2xl">
@@ -252,6 +258,7 @@ export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, on
                 defaultAmount={defaultAmount}
                 onAddPayment={onAddPayment}
                 onDelete={onDelete}
+                onLeaveFund={onLeaveFund}
                 onRate={onRate}
                 isAdmin={isAdmin}
                 totalFundMonths={totalFundMonths}

@@ -113,24 +113,27 @@ const App: React.FC = () => {
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     };
 
-    // Total collected is sum of all totalPaid
+    // Total collected is sum of all totalPaid (including those who left!)
     const totalCollected = people.reduce((sum, p) => sum + (p.totalPaid || 0), 0);
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     
-    // Contributors for the CURRENT month
-    const monthlyContributors = people.filter(p => isPaidThisMonth(p.lastPaymentDate)).length;
+    // Support active members calculations
+    const activePeople = people.filter(p => !p.hasLeft);
 
-    // Overall Debt relative to the top contributor
-    const maxContribution = people.length > 0 ? Math.max(0, ...people.map(p => p.totalPaid || 0)) : 0;
-    const totalDebt = people.reduce((sum, p) => {
+    // Contributors for the CURRENT month among active people
+    const monthlyContributors = activePeople.filter(p => isPaidThisMonth(p.lastPaymentDate)).length;
+
+    // Overall Debt relative to the top contributor among active people
+    const maxContribution = activePeople.length > 0 ? Math.max(0, ...activePeople.map(p => p.totalPaid || 0)) : 0;
+    const totalDebt = activePeople.reduce((sum, p) => {
         const debt = Math.max(0, maxContribution - (p.totalPaid || 0));
         return sum + debt;
     }, 0);
 
     return {
-      totalPeople: people.length,
+      totalPeople: activePeople.length,
       contributorsCount: monthlyContributors,
-      zeroContributionCount: people.length - monthlyContributors,
+      zeroContributionCount: activePeople.length - monthlyContributors,
       totalCollected: totalCollected,
       totalSpent: totalSpent,
       totalDebt: totalDebt,
@@ -223,8 +226,7 @@ const App: React.FC = () => {
   }
 
   const handleRate = (id: string, feedback: string) => {
-    // Allow rating/notes for everyone or restrict? Let's restrict to keep it simple as per request.
-    if (!isAdmin) return; 
+    // Anyone can edit notes/feedback, no isAdmin check.
     const updatedPeople = people.map(p => {
       if (p.id === id) return { ...p, satisfaction: feedback };
       return p;
@@ -232,6 +234,19 @@ const App: React.FC = () => {
     setPeople(updatedPeople);
     saveData(updatedPeople, expenses);
   }
+
+  const handleLeaveFund = (id: string) => {
+    if (!isAdmin) return;
+    if (window.confirm('Bu kişi fondan ayrılacak olarak işaretlenecek. Ödediği eski paralar kasada kalacak ancak kendisi listeden gizlenecektir. Onaylıyor musunuz?')) {
+      const updatedPeople = people.map(p => {
+        if (p.id === id) return { ...p, hasLeft: true };
+        return p;
+      });
+      setPeople(updatedPeople);
+      saveData(updatedPeople, expenses);
+    }
+  };
+
 
   const handleExportExcel = () => {
     const BOM = "\uFEFF";
@@ -523,23 +538,25 @@ const App: React.FC = () => {
         {/* Content List */}
         {activeTab === 'income' ? (
             <PersonList 
-                people={mikropFilter ? people.filter(p => {
-                    const maxContribution = people.length > 0 ? Math.max(0, ...people.map(person => person.totalPaid || 0)) : 0;
+                people={(mikropFilter ? people.filter(p => {
+                    const activeMembers = people.filter(member => !member.hasLeft);
+                    const maxActiveContribution = activeMembers.length > 0 ? Math.max(0, ...activeMembers.map(person => person.totalPaid || 0)) : 0;
                     const isPaidThisMonth = (dateStr?: string) => {
                         if (!dateStr) return false;
                         const now = new Date();
                         const date = new Date(dateStr);
                         return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
                     };
-                    return (p.totalPaid || 0) < maxContribution || !isPaidThisMonth(p.lastPaymentDate);
-                }) : people} 
+                    return (p.totalPaid || 0) < maxActiveContribution || !isPaidThisMonth(p.lastPaymentDate);
+                }) : people).filter(p => !p.hasLeft)} 
                 onAddPayment={handleAddPayment} 
                 onDelete={handleDeletePerson}
+                onLeaveFund={handleLeaveFund}
                 onRate={handleRate}
                 defaultAmount={coffeePrice}
                 isAdmin={isAdmin}
                 totalFundMonths={totalFundMonths}
-                maxContribution={people.length > 0 ? Math.max(0, ...people.map(p => p.totalPaid || 0)) : 0}
+                maxContribution={people.filter(p => !p.hasLeft).length > 0 ? Math.max(0, ...people.filter(p => !p.hasLeft).map(p => p.totalPaid || 0)) : 0}
             />
         ) : (
             <ExpenseList 
