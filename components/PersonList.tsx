@@ -30,6 +30,10 @@ const PersonRow: React.FC<{
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempFeedback, setTempFeedback] = useState("");
 
+  React.useEffect(() => {
+    setAmount(defaultAmount.toString());
+  }, [defaultAmount]);
+
   const handlePayment = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(amount);
@@ -60,7 +64,9 @@ const PersonRow: React.FC<{
   };
 
   const debt = Math.max(0, maxContribution - (person.totalPaid || 0));
-  const monthsOfDebt = debt > 0 ? Math.ceil(debt / defaultAmount) : 0;
+  // Aidat (defaultAmount) baz alınarak borç ayı hesabı
+  const rawMonthsOfDebt = defaultAmount > 0 ? (debt / defaultAmount) : 0;
+  const formattedDebtMonths = rawMonthsOfDebt % 1 === 0 ? rawMonthsOfDebt.toString() : rawMonthsOfDebt.toFixed(1);
   const isPaidToday = isPaidThisMonth(person.lastPaymentDate);
   const isMikrop = debt > 0 || !isPaidToday;
   const isSuperMikrop = debt >= (defaultAmount * 2);
@@ -81,7 +87,7 @@ const PersonRow: React.FC<{
             </span>
             {isMikrop && (
                 <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${isSuperMikrop ? 'bg-red-600 text-white animate-pulse' : 'bg-[#E5989B] text-white'}`}>
-                    MİKROP
+                    {isSuperMikrop ? `MİKROP (${formattedDebtMonths} AY)` : 'MİKROP'}
                 </span>
             )}
           </div>
@@ -90,8 +96,11 @@ const PersonRow: React.FC<{
                 Toplam Katkı: ₺{person.totalPaid}
              </span>
              {debt > 0 && (
-                <span className={`text-xs font-black px-2 py-0.5 rounded bg-red-100 text-red-600 border border-red-200`}>
-                   Borç: ₺{debt} {monthsOfDebt > 0 && `(${monthsOfDebt} Ay)`}
+                <span className={`text-xs font-black px-2.5 py-0.5 rounded-lg bg-red-100 text-red-700 border border-red-200 inline-flex items-center gap-1.5 shadow-xs`}>
+                   <span>Borç: ₺{debt}</span>
+                   <span className="bg-white/80 text-red-600 px-1.5 py-0.2 rounded font-extrabold text-[11px]">
+                     {formattedDebtMonths} Ay
+                   </span>
                 </span>
              )}
              {person.lastPaymentDate && (
@@ -244,10 +253,10 @@ export const PersonList: React.FC<PersonListProps> = ({ people, onAddPayment, on
     <div className="bg-white border border-theme-100 shadow-sm rounded-2xl overflow-hidden">
       {/* Table Header */}
       <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-[#F9F7F5] border-b border-theme-100 text-xs font-bold uppercase tracking-widest text-theme-400">
-        <div className="col-span-5">Kişi / Katkı & Borç</div>
-        <div className="col-span-3">{isAdmin ? 'Ödeme Ekle' : ''}</div>
+        <div className="col-span-5">Kişi / Katkı & Borç (Ay)</div>
+        <div className="col-span-3">{isAdmin ? `Ödeme Ekle (Aidat: ₺${defaultAmount})` : ''}</div>
         <div className="col-span-3">Not / Görüş</div>
-        <div className="col-span-1 text-right">{isAdmin ? 'Sil' : ''}</div>
+        <div className="col-span-1 text-right">{isAdmin ? 'İşlem' : ''}</div>
       </div>
 
       <div>

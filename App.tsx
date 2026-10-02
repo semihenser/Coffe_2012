@@ -6,7 +6,7 @@ import { ExpenseList } from './components/ExpenseList';
 import { QuoteDisplay } from './components/QuoteDisplay';
 import { generateMotivationMessage } from './services/geminiService';
 import { subscribeToData, saveData } from './services/storageService';
-import { Plus, Download, Settings, Loader2, Coffee, Sparkles, Wifi, Lock, Unlock, LogOut, X } from 'lucide-react';
+import { Plus, Download, Settings, Loader2, Coffee, Sparkles, Wifi, Lock, Unlock, LogOut, X, Coins, Edit3, Check } from 'lucide-react';
 
 const SETTINGS_KEY = 'office-coffee-settings';
 
@@ -39,7 +39,9 @@ const App: React.FC = () => {
   const [expenseAmount, setExpenseAmount] = useState<string>('');
   
   // Settings State
-  const [coffeePrice, setCoffeePrice] = useState<number>(200); // Default monthly contribution
+  const [coffeePrice, setCoffeePrice] = useState<number>(300); // Default monthly contribution (Aidat)
+  const [isEditingAidat, setIsEditingAidat] = useState(false);
+  const [aidatInput, setAidatInput] = useState<string>("300");
   const [coffeeConsumption, setCoffeeConsumption] = useState<number>(0);
   const [fundStartDate, setFundStartDate] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [showSettings, setShowSettings] = useState(false);
@@ -54,7 +56,10 @@ const App: React.FC = () => {
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        setCoffeePrice(settings.price || 200);
+        if (settings.price) {
+          setCoffeePrice(settings.price);
+          setAidatInput(settings.price.toString());
+        }
         setCoffeeConsumption(settings.consumption || 0);
         setFundStartDate(settings.startDate || new Date().toISOString().slice(0, 7));
       } catch (e) {
@@ -64,13 +69,13 @@ const App: React.FC = () => {
 
     // Subscribe to Cloud Data
     setIsLoadingData(true);
-    const unsubscribe = subscribeToData((dataPeople, dataExpenses) => {
+    const unsubscribe = subscribeToData((dataPeople, dataExpenses, cloudSettings) => {
       // MIGRATION LOGIC: Convert old boolean 'hasPaid' to 'totalPaid'
       const migratedPeople = dataPeople.map(p => {
         if (p.totalPaid === undefined) {
              return {
                  ...p,
-                 totalPaid: p.hasPaid ? 200 : 0, // Assume 200 if marked as paid in old system
+                 totalPaid: p.hasPaid ? 300 : 0,
                  lastPaymentDate: p.datePaid
              }
         }
@@ -79,6 +84,10 @@ const App: React.FC = () => {
 
       setPeople(migratedPeople);
       setExpenses(dataExpenses);
+      if (cloudSettings?.monthlyDue) {
+        setCoffeePrice(cloudSettings.monthlyDue);
+        setAidatInput(cloudSettings.monthlyDue.toString());
+      }
       setIsLoadingData(false);
     });
 
@@ -137,9 +146,10 @@ const App: React.FC = () => {
       totalCollected: totalCollected,
       totalSpent: totalSpent,
       totalDebt: totalDebt,
-      remainingBalance: totalCollected - totalSpent
+      remainingBalance: totalCollected - totalSpent,
+      monthlyDue: coffeePrice
     };
-  }, [people, expenses]);
+  }, [people, expenses, coffeePrice]);
 
   // Handlers
   const handleLogin = (e: React.FormEvent) => {
@@ -158,6 +168,28 @@ const App: React.FC = () => {
   const handleLogout = () => {
       setIsAdmin(false);
       setShowSettings(false);
+      setIsEditingAidat(false);
+  };
+
+  const handleUpdateAidat = (newPrice: number) => {
+    if (!isAdmin) return;
+    if (isNaN(newPrice) || newPrice <= 0) return;
+    setCoffeePrice(newPrice);
+    setAidatInput(newPrice.toString());
+    setIsEditingAidat(false);
+    saveData(people, expenses, {
+      monthlyDue: newPrice,
+      consumption: coffeeConsumption,
+      startDate: fundStartDate
+    });
+  };
+
+  const handleSaveAidatInline = (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(aidatInput);
+    if (!isNaN(val) && val > 0) {
+      handleUpdateAidat(val);
+    }
   };
 
   const handleAddData = (e: React.FormEvent) => {
@@ -173,7 +205,11 @@ const App: React.FC = () => {
         };
         const updatedPeople = [...people, newPerson];
         setPeople(updatedPeople);
-        saveData(updatedPeople, expenses);
+        saveData(updatedPeople, expenses, {
+          monthlyDue: coffeePrice,
+          consumption: coffeeConsumption,
+          startDate: fundStartDate
+        });
         setNewName('');
     } else {
         if (!expenseDesc.trim() || !expenseAmount) return;
@@ -185,7 +221,11 @@ const App: React.FC = () => {
         };
         const updatedExpenses = [...expenses, newExpense];
         setExpenses(updatedExpenses);
-        saveData(people, updatedExpenses);
+        saveData(people, updatedExpenses, {
+          monthlyDue: coffeePrice,
+          consumption: coffeeConsumption,
+          startDate: fundStartDate
+        });
         setExpenseDesc('');
         setExpenseAmount('');
     }
@@ -204,7 +244,11 @@ const App: React.FC = () => {
           return p;
       });
       setPeople(updatedPeople);
-      saveData(updatedPeople, expenses);
+      saveData(updatedPeople, expenses, {
+        monthlyDue: coffeePrice,
+        consumption: coffeeConsumption,
+        startDate: fundStartDate
+      });
   };
 
   const handleDeletePerson = (id: string) => {
@@ -212,7 +256,11 @@ const App: React.FC = () => {
     if (window.confirm('Kişi silinecek. Onaylıyor musunuz?')) {
       const updatedPeople = people.filter(p => p.id !== id);
       setPeople(updatedPeople);
-      saveData(updatedPeople, expenses);
+      saveData(updatedPeople, expenses, {
+        monthlyDue: coffeePrice,
+        consumption: coffeeConsumption,
+        startDate: fundStartDate
+      });
     }
   };
 
@@ -221,7 +269,11 @@ const App: React.FC = () => {
      if (window.confirm('Harcama kaydı silinecek. Onaylıyor musunuz?')) {
         const updatedExpenses = expenses.filter(e => e.id !== id);
         setExpenses(updatedExpenses);
-        saveData(people, updatedExpenses);
+        saveData(people, updatedExpenses, {
+          monthlyDue: coffeePrice,
+          consumption: coffeeConsumption,
+          startDate: fundStartDate
+        });
      }
   }
 
@@ -232,7 +284,11 @@ const App: React.FC = () => {
       return p;
     });
     setPeople(updatedPeople);
-    saveData(updatedPeople, expenses);
+    saveData(updatedPeople, expenses, {
+      monthlyDue: coffeePrice,
+      consumption: coffeeConsumption,
+      startDate: fundStartDate
+    });
   }
 
   const handleLeaveFund = (id: string) => {
@@ -243,7 +299,11 @@ const App: React.FC = () => {
         return p;
       });
       setPeople(updatedPeople);
-      saveData(updatedPeople, expenses);
+      saveData(updatedPeople, expenses, {
+        monthlyDue: coffeePrice,
+        consumption: coffeeConsumption,
+        startDate: fundStartDate
+      });
     }
   };
 
@@ -385,14 +445,80 @@ const App: React.FC = () => {
              </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+             {/* Aidat Display & Inline Editor */}
+             <div className="flex items-center gap-3 bg-white border border-theme-200/90 shadow-sm rounded-2xl px-4 py-2.5 transition-all">
+                <div className="p-2.5 bg-[#FAEDCD] text-[#7F5539] rounded-xl flex items-center justify-center shadow-xs">
+                   <Coins size={20} />
+                </div>
+                <div>
+                   <span className="block text-[10px] font-black uppercase tracking-wider text-theme-400">
+                      Aylık Aidat
+                   </span>
+                   {isEditingAidat && isAdmin ? (
+                      <form onSubmit={handleSaveAidatInline} className="flex items-center gap-1.5 mt-0.5">
+                         <span className="font-bold text-theme-600 text-sm">₺</span>
+                         <input 
+                            type="number"
+                            value={aidatInput}
+                            onChange={(e) => setAidatInput(e.target.value)}
+                            className="w-20 px-2 py-0.5 text-sm font-bold font-mono border border-accent-DEFAULT rounded-lg outline-none bg-[#F9F7F5] text-theme-800"
+                            autoFocus
+                            min="1"
+                         />
+                         <button
+                            type="submit"
+                            className="p-1 bg-theme-800 text-white hover:bg-accent-DEFAULT rounded-lg transition-colors"
+                            title="Kaydet"
+                         >
+                            <Check size={14} />
+                         </button>
+                         <button
+                            type="button"
+                            onClick={() => {
+                               setIsEditingAidat(false);
+                               setAidatInput(coffeePrice.toString());
+                            }}
+                            className="p-1 text-theme-400 hover:text-red-500 rounded-lg transition-colors"
+                            title="İptal"
+                         >
+                            <X size={14} />
+                         </button>
+                      </form>
+                   ) : (
+                      <div className="flex items-center gap-2 mt-0.5">
+                         <span className="text-xl font-black text-theme-800 font-mono leading-none">
+                            ₺{coffeePrice}
+                         </span>
+                         {isAdmin ? (
+                            <button
+                               onClick={() => {
+                                  setAidatInput(coffeePrice.toString());
+                                  setIsEditingAidat(true);
+                               }}
+                               className="flex items-center gap-1 text-[11px] font-bold text-accent-DEFAULT hover:text-theme-800 px-2 py-0.5 rounded-md hover:bg-theme-50 transition-colors border border-transparent hover:border-theme-200"
+                               title="Aidat Tutarını Değiştir"
+                            >
+                               <Edit3 size={12} />
+                               <span>Değiştir</span>
+                            </button>
+                         ) : (
+                            <span className="text-[10px] font-bold text-theme-400 bg-theme-50 px-1.5 py-0.5 rounded">
+                               / ay
+                            </span>
+                         )}
+                      </div>
+                   )}
+                </div>
+             </div>
+
              {isAdmin && (
-                <button onClick={() => setShowSettings(!showSettings)} className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider bg-white text-theme-500 border border-theme-100 hover:border-accent-DEFAULT hover:text-accent-DEFAULT transition-all flex items-center gap-2">
-                    <Settings size={16} />
+                <button onClick={() => setShowSettings(!showSettings)} className="px-4 py-3 rounded-2xl text-sm font-bold uppercase tracking-wider bg-white text-theme-500 border border-theme-100 hover:border-accent-DEFAULT hover:text-accent-DEFAULT transition-all flex items-center gap-2 shadow-xs" title="Parametreler">
+                    <Settings size={18} />
                 </button>
              )}
-             <button onClick={handleExportExcel} className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider bg-white text-theme-500 border border-theme-100 hover:border-accent-DEFAULT hover:text-accent-DEFAULT transition-all flex items-center gap-2">
-                <Download size={16} /> Excel
+             <button onClick={handleExportExcel} className="px-4 py-3 rounded-2xl text-sm font-bold uppercase tracking-wider bg-white text-theme-500 border border-theme-100 hover:border-accent-DEFAULT hover:text-accent-DEFAULT transition-all flex items-center gap-2 shadow-xs">
+                <Download size={18} /> Excel
              </button>
           </div>
         </header>
@@ -409,9 +535,18 @@ const App: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                <div className="group">
-                  <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Önerilen Ödeme Tutarı (TL)</label>
-                  <input type="number" value={coffeePrice} onChange={(e) => setCoffeePrice(Number(e.target.value))} className="w-full bg-[#F9F7F5] border border-theme-200 rounded-xl outline-none py-3 px-4 text-lg font-mono text-theme-800" />
-                  <p className="text-[10px] text-theme-300 mt-1">Listede "Ekle" butonuna basıldığında varsayılan olarak gelecek tutar.</p>
+                  <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Aylık Aidat Tutarı (TL)</label>
+                  <input 
+                    type="number" 
+                    value={coffeePrice} 
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setCoffeePrice(val);
+                      setAidatInput(val.toString());
+                    }} 
+                    className="w-full bg-[#F9F7F5] border border-theme-200 rounded-xl outline-none py-3 px-4 text-lg font-mono text-theme-800" 
+                  />
+                  <p className="text-[10px] text-theme-300 mt-1">Aylık toplanacak aidat ve kişi başı borç ayı hesaplama tutarı.</p>
                </div>
                <div className="group">
                   <label className="block text-xs font-bold text-theme-400 uppercase tracking-wider mb-2">Aylık Hedef (Gr)</label>
@@ -424,7 +559,19 @@ const App: React.FC = () => {
                </div>
             </div>
             <div className="mt-6 flex justify-end">
-               <button onClick={() => setShowSettings(false)} className="bg-theme-800 text-white hover:bg-accent-DEFAULT px-8 py-3 rounded-xl font-bold uppercase tracking-wider transition-colors text-xs shadow-lg shadow-theme-200">Kaydet & Kapat</button>
+               <button 
+                onClick={() => {
+                  setShowSettings(false);
+                  saveData(people, expenses, {
+                    monthlyDue: coffeePrice,
+                    consumption: coffeeConsumption,
+                    startDate: fundStartDate
+                  });
+                }} 
+                className="bg-theme-800 text-white hover:bg-accent-DEFAULT px-8 py-3 rounded-xl font-bold uppercase tracking-wider transition-colors text-xs shadow-lg shadow-theme-200"
+               >
+                 Kaydet & Kapat
+               </button>
             </div>
           </div>
         )}

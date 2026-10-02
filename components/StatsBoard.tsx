@@ -38,7 +38,7 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ stats, mikropActive, onM
       <StatCard 
         label="Toplanan" 
         value={`₺${stats.totalCollected}`} 
-        subtext="Genel Toplam"
+        subtext={stats.monthlyDue ? `Aidat: ₺${stats.monthlyDue}` : "Genel Toplam"}
         icon={Wallet} 
         colorClass="bg-[#E9EDC9] text-[#4A5D23]" // Pastel Green
       />

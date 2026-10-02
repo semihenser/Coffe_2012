@@ -27,4 +27,5 @@ export interface Stats {
   totalPeople: number;
   contributorsCount: number; // People who paid at least something
   zeroContributionCount: number; // People who paid nothing
+  monthlyDue?: number;
 }
